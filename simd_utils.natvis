@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  
+  <Type Name="simd::SoATriangles">
+    <DisplayString>{num_} tris</DisplayString>
+  </Type>
+
+  <Type Name="TLinkVector&lt;*&gt;::Vector">
+    <DisplayString>count = {num}</DisplayString>
+    <Expand>
+      <Item Name="[capacity]" ExcludeView="simple">capacity</Item>
+      <Item Name="[num]" ExcludeView="simple">num</Item>
+      <ArrayItems>
+        <Size>num</Size>
+        <ValuePointer>data</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+
+  <Type Name="TLinkVector&lt;*&gt;">
+    <DisplayString>{{ size={num_} accum={accum_} }}</DisplayString>
+    <Expand>
+      <LinkedListItems>
+        <Size>num_</Size>
+        <HeadPointer>head_</HeadPointer>
+        <NextPointer>next</NextPointer>
+        <ValueNode>next</ValueNode>
+      </LinkedListItems>
+    </Expand>
+  </Type>
+
+</AutoVisualizer>
