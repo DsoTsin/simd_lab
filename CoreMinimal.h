@@ -7,6 +7,9 @@
 #define FORCEINLINE __forceinline
 #define check(x) assert(x)
 
+#ifndef STATS
+#define STATS 1
+#endif
 
 #ifdef _MSC_VER
 extern "C" void *_InterlockedCompareExchangePointer(void *volatile *Destination,
@@ -37,6 +40,7 @@ extern "C" void atomic_increment64(size_t* ptr); // defined in asm
 #include "Threading.h"
 
 #include "concurrentqueue.h"
+#include "vectorlist.hpp"
 
 struct FVector {
   union {

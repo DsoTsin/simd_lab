@@ -35,30 +35,18 @@ public:
       return this;
     }
 
-    const vectorIter& operator++(int)
-    {
-        vec = vec->next;
-        return *this;
+    const vectorIter &operator++(int) {
+      vec = vec->next;
+      return *this;
     }
 
-    Vector& operator*()
-    {
-        return *vec;
-    }
+    Vector &operator*() { return *vec; }
 
-    const Vector& operator*() const
-    {
-        return *vec;
-    }
+    const Vector &operator*() const { return *vec; }
   };
 
   TLinkVector();
   ~TLinkVector();
-
-  // void add(const T &elem);
-
-  // atomic
-  // void add(Vector &v);
 
   void reset();
   Vector *newVector();
@@ -66,10 +54,11 @@ public:
   size_t num() const { return num_; }
   size_t accum() const { return accum_; }
 
-  vectorIter begin() const
-  {
-      return vectorIter(head_->next);
-  }
+#if STATS
+  size_t resize_count() const { return resize_count_; }
+#endif
+
+  vectorIter begin() const { return vectorIter(head_->next); }
 
 private:
   Vector *head_;
@@ -77,6 +66,10 @@ private:
 
   size_t num_;
   size_t accum_;
+
+#if STATS
+  size_t resize_count_;
+#endif
 };
 
 template <typename T>
@@ -97,6 +90,9 @@ template <typename T> inline TLinkVector<T>::Vector::~Vector() {
 template <typename T> inline size_t TLinkVector<T>::Vector::add(const T &elem) {
   size_t cur = num;
   if (num + 1 > capacity) {
+#if STATS
+    __intrin__::atomic_increment64(&list->resize_count_);
+#endif
     capacity = size_t(1.3 * capacity) + 1;
     T *newData = (T *)malloc(capacity * sizeof(T));
     ::memcpy(newData, data, num * sizeof(T));
@@ -156,7 +152,11 @@ template <typename T> inline void TLinkVector<T>::Vector::unlink() {
 
 template <typename T>
 inline TLinkVector<T>::TLinkVector()
-    : head_(nullptr), tail_(nullptr), num_(0), accum_(0) {
+    : head_(nullptr), tail_(nullptr), num_(0), accum_(0)
+#if STATS
+    , resize_count_(0)
+#endif
+{
   head_ = new TLinkVector<T>::Vector; // add dummy head
   tail_ = head_;
 }
@@ -192,6 +192,10 @@ template <typename T> inline void TLinkVector<T>::reset() {
   }
   accum_ = 0;
   num_ = 0;
+
+#if STATS
+  resize_count_ = 0;
+#endif
 }
 
 template <typename T>

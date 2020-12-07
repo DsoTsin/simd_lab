@@ -2,27 +2,29 @@
 
 #include "CoreMinimal.h"
 
+#include <atomic>
+
 namespace simd {
 class ITask {
 public:
-  ITask() : finished_(0), event_(new Event(false)) {}
+  ITask() : finished_(false), event_(new Event(false)) {}
   virtual ~ITask() { delete event_; }
 
   virtual void run() {}
 
   void wait() { event_->wait(); }
 
-  bool isComplete() const { return finished_ == 1; }
+  bool isComplete() const { return finished_.load(); }
 
 private:
   void finish() {
     event_->trigger();
-    finished_ = 1;
+    finished_.store(true);
   }
 
   friend class TaskThread;
 
-  volatile int32 finished_;
+  std::atomic_bool finished_;
   Event *event_;
 };
 

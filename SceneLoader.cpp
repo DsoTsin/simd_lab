@@ -1,10 +1,8 @@
 #include "SceneLoader.h"
 #include <fstream>
 #include <iostream>
-#include <chrono>  
 
 using namespace std::chrono;
-
 
 namespace simd {
 Object::Object() : mesh_(nullptr) {}
@@ -57,17 +55,17 @@ void SceneLoader::allocFramebuffer(int width, int height) {
 }
 
 void SceneLoader::renderFrame() {
-  //set breakpoint at SceneView.h:402, copy debug values
-  FMatrix viewMatrix = {
-      -0.939014971, -0.164611682, -0.301917553, 0.00000000,
-     -0.343876719, 0.449500710, 0.824438155, 0.00000000,
-     0.00000000, 0.877981782, -0.478693873, 0.00000000,
-     -859.312927, 806.839966, 5204.81934, 1.00000000
-  };
+  ScopeTimer _("renderFrame");
+  // set breakpoint at SceneView.h:402, copy debug values
+  FMatrix viewMatrix = {-0.939014971, -0.164611682, -0.301917553, 0.00000000,
+                        -0.343876719, 0.449500710,  0.824438155,  0.00000000,
+                        0.00000000,   0.877981782,  -0.478693873, 0.00000000,
+                        -859.312927,  806.839966,   5204.81934,   1.00000000};
   FMatrix projMatrix = {
-      0.999f, 0.f, 0.f, 0.f, 0.f, 1.998f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 10.f, 0.f,
+      0.999f, 0.f, 0.f, 0.f, 0.f, 1.998f, 0.f,  0.f,
+      0.f,    0.f, 0.f, 1.f, 0.f, 0.f,    10.f, 0.f,
   };
-  //WClip = ViewProj.M[3][2];
+  // WClip = ViewProj.M[3][2];
   FMatrix viewProj;
   matrixMultiplyAVX(viewProj, viewMatrix, projMatrix);
   sr_.beginRender(viewProj);
@@ -76,16 +74,33 @@ void SceneLoader::renderFrame() {
     sr_.render(obj->mesh(), obj->l2w());
   }
   sr_.flush();
-
   auto end = system_clock::now();
-  auto duration = duration_cast<microseconds>(end - start);
-
+  duration = duration_cast<microseconds>(end - start);
   sr_.endRender();
+}
 
+void SceneLoader::dump() {
   std::cout << "using "
-       << double(duration.count()) * microseconds::period::num /
-              microseconds::period::den
-       << " s" << std::endl;
+            << double(duration.count()) * microseconds::period::num /
+                   microseconds::period::den
+            << " s" << std::endl;
   sr_.dumpDepthBuffer();
 }
+
+// use SunTemple scene to evaluate
+void TestRaster() {
+  // for intel 11th gen cpu (10nm) like 1165G7 avx512 (tiger-lake tier) won't
+  // cause cpu frequency reduction (downclocking)
+  SceneLoader sl;
+  if (sl.load("testScene.bin")) {
+    sl.allocFramebuffer(1613, 807);
+    int32 testCount = 10;
+    int32 counter = 0;
+    while (counter++ < testCount) {
+      sl.renderFrame();
+    }
+    sl.dump();
+  }
+}
+
 } // namespace simd

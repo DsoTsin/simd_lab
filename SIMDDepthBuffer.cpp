@@ -1,6 +1,11 @@
 #include "SIMDRaster.h"
 
 namespace simd {
+bool SScreenTriangle::intersect(const SBoxInt &box) const {
+  return (minY <= box.maxY && minY >= box.minY) ||
+         (maxY <= box.maxY && maxY >= box.minY) || (maxY > box.maxY && minY < box.minY);
+}
+
 SDepthTile::SDepthTile(SRenderContext *context)
     : context_(context), minDepth_(0.f), maxDepth_(0.f), mask_(nullptr) {}
 

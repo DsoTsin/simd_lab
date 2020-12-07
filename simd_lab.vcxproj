@@ -99,6 +99,7 @@
     <ClCompile Include="lodepng.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="SceneLoader.cpp" />
+    <ClCompile Include="ScopeTimer.cpp" />
     <ClCompile Include="SIMDDepthBuffer.cpp" />
     <ClCompile Include="SIMDMesh.cpp" />
     <ClCompile Include="SIMDRaster.cpp" />
@@ -127,6 +128,7 @@
     <ClInclude Include="Mesh_p.h" />
     <ClInclude Include="RefCounted.h" />
     <ClInclude Include="SceneLoader.h" />
+    <ClInclude Include="ScopeTimer.h" />
     <ClInclude Include="SIMDRaster.h" />
     <ClInclude Include="SlotMask.h" />
     <ClInclude Include="SoATriangles.h" />

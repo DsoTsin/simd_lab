@@ -2,6 +2,7 @@
 #include "Mesh_p.h"
 #include "lodepng.h"
 
+#include <chrono>
 #include <intrin.h>
 #include <iostream>
 
@@ -12,9 +13,26 @@
 #define USE_AVX 1
 #endif
 
+#ifndef USE_WAIT
+#define USE_WAIT 0
+#endif
+
 #ifndef USE_SCALAR_RASTERIZE
 #define USE_SCALAR_RASTERIZE 0
 #endif
+
+#ifndef USE_SCALAR_BINNING
+#define USE_SCALAR_BINNING 0
+#endif
+
+#ifndef USE_SINGLETHREAD_RASTER
+#define USE_SINGLETHREAD_RASTER 0
+#endif
+
+// todo: consider using masked tiles with tile min/maxDepth to reduce triangle
+// rasterization count
+// @see masked occlusion culling by intel
+// this library is designed to be compatible with mobile devices (ARM neon)
 
 extern "C" int ispc_lane_width();
 
@@ -44,14 +62,25 @@ extern "C" void transformVerticesAndCullTriangles_sse2(
     const float *inAoSTris, int trisOffset, int numTris,
     const FMatrix *local2clip, SRenderParams *params, SRenderContextIspc *ispc,
     void *userData);
+export void rasterTriangles32F(simd::SScreenTriangle *tris, int32 numTris,
+                               uniform uint8 useReverseZ,
+                               uniform SDepthBufferIspc32 *uniform depth);
 
-extern "C" void rasterTriangles32F(SScreenTriangle *tris, int32 numTris,
-                                   uniform uint8 useReverseZ,
-                                   uniform SDepthBufferIspc32 *uniform depth);
+export void rasterTriangles32FImplReverseZTiled(
+    uniform simd::SScreenTriangle tris[], uniform int32 trisIds[],
+    uniform int32 numTris, uniform simd::SBoxInt *uniform tileBox,
+    uniform SDepthBufferIspc32 *uniform depth);
+
+export void
+rasterTriangles32FImplReverseZTiled2(uniform simd::SScreenTriangle tris[],
+                                     uniform int32 numTris,
+                                     uniform simd::SBoxInt *uniform tileBox,
+                                     uniform SDepthBufferIspc32 *uniform depth);
 
 #include "SceneLoader.h"
 
 namespace simd {
+
 STransformCullTask::STransformCullTask(
     SRenderContext *context, SMesh *mesh, const FMatrix &l2c,
     const SRenderParams &params, int32 sTriId, int32 eTriId,
@@ -127,10 +156,7 @@ void SRender::flush() {
   renderContext_.prepareTiles();
   renderContext_.spawnTileRasterTasks();
 }
-void SRender::endRender() {
-  renderContext_.endRender();
-  renderContext_.dumpDepthBufferForDebug();
-}
+void SRender::endRender() { renderContext_.endRender(); }
 
 void SRender::dumpDepthBuffer() { renderContext_.dumpDepthBufferForDebug(); }
 
@@ -192,6 +218,7 @@ void SRenderContext::initFramebuffer(int width, int height) {
   depth_ = new SDepthBuffer(coreCount_, simdLanes_, width, height);
 }
 void SRenderContext::beginRender(const FMatrix &viewProj) {
+  check(depth_ != nullptr);
   processedTris_ = 0;
   viewProj_ = viewProj;
   // if use reverseZ, 0 means far, 1 means near
@@ -200,6 +227,43 @@ void SRenderContext::beginRender(const FMatrix &viewProj) {
   // rev CF_GreaterEqual : CF_LessEqual
   // depth_->clear(useReverseZ_ ? -INFINITY : INFINITY);
   depth_->clear(useReverseZ_ ? 0.0f : 1.0f);
+
+  // clear tiles data
+  tileBoxes_.clear();
+  tileTrisIds_.clear();
+  tileTris_.clear();
+
+  int32 laneCountX = depth_->width() / simdLanes_;
+  int32 laneCountY = depth_->height() / simdLanes_;
+
+  // for cache-miss issues, we prefer column-based task dispatch
+  if (laneCountY > coreCount_) {
+    int32 lanesYPerCore = laneCountY / coreCount_;
+    int32 lanesYLastCore = laneCountY % coreCount_;
+
+    int32 rowsPerCore = depth_->height() / coreCount_;
+    int32 rowsLastCore = depth_->height() % coreCount_;
+
+    int32 tileW = laneCountX * simdLanes_;
+    int32 tileHPerCore = lanesYPerCore * simdLanes_;
+    int32 tileHLastCore = lanesYLastCore * simdLanes_;
+
+    for (int32 coreId = 0; coreId < coreCount_; coreId++) {
+      if (coreId == coreCount_ - 1) {
+        SBoxInt box{0, rowsPerCore * coreId, tileW,
+                    rowsPerCore * coreId + tileHLastCore};
+        tileBoxes_.push_back(box);
+        break;
+      }
+      SBoxInt box{0, rowsPerCore * coreId, tileW,
+                  rowsPerCore * coreId + rowsPerCore};
+      tileBoxes_.push_back(box);
+    }
+  }
+
+  // allocate tile trisIds
+  tileTrisIds_.resize(tileBoxes_.size());
+  tileTris_.resize(tileBoxes_.size());
 }
 void SRenderContext::transformAndCull(SMesh *m, const FMatrix &l2w) {
   processedTris_ += m->numTris();
@@ -208,10 +272,10 @@ void SRenderContext::transformAndCull(SMesh *m, const FMatrix &l2w) {
   SRenderParams params{depth_->width(), depth_->height(), viewProj_.M[3][2]};
   auto trisN = ctris_.newVector();
 #if USE_MULTITHREAD
-  tasks_.push_back(
+  transform_tasks_.push_back(
       new STransformCullTask(this, m, l2c, params, 0, m->numTris(), trisN));
   workerCounter_ = ++workerCounter_ % transWorkers_.size();
-  transWorkers_[workerCounter_]->enqueue(tasks_.back());
+  transWorkers_[workerCounter_]->enqueue(transform_tasks_.back());
 #else
   SwizzledMesh *sm = static_cast<SwizzledMesh *>(m);
   trisN->reserve(sm->numTris());
@@ -220,38 +284,149 @@ void SRenderContext::transformAndCull(SMesh *m, const FMatrix &l2w) {
   // split clip tris
 }
 
+extern "C" void
+binTriangles2TileImpl(uniform SScreenTriangle tris[], uniform int32 numTris,
+                      uniform SBoxInt *uniform tileBox, uniform int32 numTiles,
+                      uniform FnBinTriangle2Tiles fnBinTriangle2Tiles,
+                      SRenderContext *uniform self);
+
 void SRenderContext::splitClipTris() {
-  for (auto &t : tasks_) {
-    t->wait();
-  }
-  // gather tris, memcpy heavy
-  surviveTris_.resize(ctris_.accum());
-  size_t offset = 0;
-  for (auto iter = ctris_.begin(); iter; iter++) {
-    auto &vec = *iter;
-    if (vec.num) {
-      memcpy(&surviveTris_[offset], vec.data,
-             vec.num * sizeof(SScreenTriangle));
-      offset += vec.num;
+  ScopeTimer _("splitClipTris");
+#if USE_WAIT
+  {
+    ScopeTimer wt("trasnforms");
+    for (auto &t : transform_tasks_) {
+      t->wait();
     }
   }
-  // assign tris to tiles
-  // foreach triangle intersects tiles, tiles add tris ids (tile quad tree?)
-  // (if totally covered in a tile, the best performance gains)
-  // classify big triangles (immediate rasterize) and small triangles (go tiled)
+
+  {
+    ScopeTimer gt("gatherClipTris");
+    // gather tris, memcpy heavy
+    // todo: here, we already know visibility result for some mesh.
+    surviveTris_.resize(ctris_.accum());
+    size_t offset = 0;
+    for (auto iter = ctris_.begin(); iter; iter++) {
+      auto &vec = *iter;
+      if (vec.num) {
+        memcpy(&surviveTris_[offset], vec.data,
+               vec.num * sizeof(SScreenTriangle));
+        offset += vec.num;
+      }
+    }
+  }
+#else
+  size_t total_tasks = transform_tasks_.size();
+  size_t task_id = 0;
+  while (total_tasks > 0) {
+    if (transform_tasks_[task_id]->isComplete()) {
+      auto &tris = transform_tasks_[task_id]->clipTris();
+      binTriangles2TileImpl(
+          tris.data, tris.num, tileBoxes_.data(), int32(tileBoxes_.size()),
+          (FnBinTriangle2Tiles)&SRenderContext::_binTriangle2Tiles, this);
+      total_tasks--;
+    }
+    task_id = ++task_id % transform_tasks_.size();
+  }
+#endif
 }
 
+void SRenderContext::_binTriangle2Tiles(SRenderContext *self,
+                                        const SScreenTriangle *tri,
+                                        int32 tileId) {
+  self->binTriangle2Tiles(tri, tileId);
+}
+
+void SRenderContext::binTriangle2Tiles(const SScreenTriangle *tri,
+                                       int32 tileId) {
+  if (tileTris_[tileId].empty()) {
+    tileTris_[tileId].reserve(4000);
+  }
+  tileTris_[tileId].push_back(*tri);
+}
+
+export void binTriangles(uniform SScreenTriangle tris[], uniform int32 numTris,
+                         uniform SBoxInt *uniform tileBox,
+                         uniform int32 numTiles, uniform FnBinTiles fnBinTiles,
+                         SRenderContext *uniform self);
+
+// assign tris to tiles
+// foreach triangle intersects tiles, tiles add tris ids (tile quad tree?)
+// (if totally covered in a tile, the best performance gains)
+// classify big triangles (immediate rasterize) and small triangles (go tiled)
 void SRenderContext::prepareTiles() {
+  ScopeTimer _("prepareTiles");
   // assign tris to tiles
-  //
-  // parallel rasterization
+  check(depth_ != nullptr);
+
+#if !USE_SINGLETHREAD_RASTER && USE_WAIT
+#if USE_SCALAR_BINNING
+  for (size_t index = 0; index < surviveTris_.size(); index++) {
+    auto &st = surviveTris_[index];
+    for (size_t tileId = 0; tileId < tileBoxes_.size(); tileId++) {
+      if (st.intersect(tileBoxes_[tileId])) {
+        tileTrisIds_[tileId].push_back((int32)index);
+      }
+    }
+  }
+#else
+  binTriangles(surviveTris_.data(), int32(surviveTris_.size()),
+               tileBoxes_.data(), int32(tileBoxes_.size()),
+               (FnBinTiles)&SRenderContext::_binTiles, this);
+#endif
+  // todo sort triList?
+#endif
+}
+
+void SRenderContext::_binTiles(SRenderContext *self, int32 triId,
+                               int32 tileId) {
+  self->binTiles(triId, tileId);
+}
+
+void SRenderContext::binTiles(int32 triId, int32 tileId) {
+  if (tileTrisIds_[tileId].empty()) {
+    tileTrisIds_[tileId].reserve(4000);
+  }
+  tileTrisIds_[tileId].push_back(triId);
+}
+
+SRasterTask::SRasterTask(SRenderContext *context, int32 tileId)
+    : context_(context), tileId_(tileId) {}
+
+SRasterTask::~SRasterTask() {}
+
+void SRasterTask::run() {
+#if USE_WAIT
+  rasterTriangles32FImplReverseZTiled(
+      context_->surviveTris_.data(), context_->tileTrisIds_[tileId_].data(),
+      (int32)context_->tileTrisIds_[tileId_].size(),
+      &context_->tileBoxes_[tileId_], context_->accessDepth32());
+#else
+  rasterTriangles32FImplReverseZTiled2(
+      context_->tileTris_[tileId_].data(),
+      (int32)context_->tileTris_[tileId_].size(),
+      &context_->tileBoxes_[tileId_], context_->accessDepth32());
+#endif
 }
 
 void SRenderContext::spawnTileRasterTasks() {
+  ScopeTimer _("rasterize");
+#if USE_SINGLETHREAD_RASTER
 #if USE_SCALAR_RASTERIZE
   scalarRasterize();
 #else
   vectorRasterize();
+#endif
+#else
+  for (int32 tileId = 0; tileId < tileBoxes_.size(); tileId++) {
+    raster_tasks_.push_back(new SRasterTask(this, tileId));
+    transWorkers_[tileId]->enqueue(raster_tasks_.back());
+  }
+  for (auto &r : raster_tasks_) {
+    r->wait();
+    delete r;
+  }
+  raster_tasks_.clear();
 #endif
 }
 
@@ -293,16 +468,12 @@ void SRenderContext::vectorRasterize() {
 }
 
 void SRenderContext::endRender() {
-  for (auto &t : tasks_) {
+  ScopeTimer _("endRender");
+  for (auto &t : transform_tasks_) {
     delete t;
   }
-  tasks_.clear();
+  transform_tasks_.clear();
   surviveTris_.clear();
-  // clean up
-  size_t acc = ctris_.accum();
-  std::cout << "visiTris : " << (int64)acc << " total : " << processedTris_
-            << std::endl;
-
   ctris_.reset();
 }
 
@@ -347,18 +518,5 @@ void SRenderContext::myTransform(const float *inAoSTris, int trisOffset,
 }
 
 SThreadContext::SThreadContext() {}
-
-// use SunTemple scene to evaluate
-void TestRaster() {
-  // for intel 11th gen cpu (10nm) like 1165G7 avx512 (tiger-lake tier) won't
-  // cause cpu frequency reduction (downclocking)
-  SceneLoader sl;
-  if (sl.load("testScene.bin")) {
-    sl.allocFramebuffer(1613, 807);
-    // while (true) {
-    sl.renderFrame();
-    //}
-  }
-}
 
 } // namespace simd

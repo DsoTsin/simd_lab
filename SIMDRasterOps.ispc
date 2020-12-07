@@ -1,5 +1,8 @@
 #include "Raster.isph"
 
+#define USE_TILED 1
+#define USE_ATOMIC_DEPTH_WRITE 0
+
 export uniform int ispc_lane_width() { return programCount; }
 
 //@see simd::ClipTrisCache
@@ -63,10 +66,6 @@ inline float mulW3(const float &X, const float &Y, const float &Z,
                    const uniform float M[16]) {
   return X * M[3] + Y * M[7] + Z * M[11] + M[15];
 }
-
-extern "C" void printPerSimd();
-extern "C" void printPerLane();
-extern "C" void printVisibleTri(uniform int, uniform uint8, uniform uint8);
 
 export void clearDepth32(uniform float depth[], uniform float value,
                          uniform int32 width, uniform int32 height) {
@@ -216,8 +215,6 @@ export void transformVerticesAndCullTriangles(
   }
 }
 
-#define USE_TILED 1
-
 void rasterTriangles32FImplReverseZ(uniform SScreenTriangle tris[],
                                     uniform int32 numTris,
                                     uniform SDepthBufferIspc32 *uniform depth) {
@@ -243,8 +240,10 @@ void rasterTriangles32FImplReverseZ(uniform SScreenTriangle tris[],
         float oneOverZ =
             1.0f / st.cz0 * w0 + 1.0f / st.cz0 * w1 + 1.0f / st.cz0 * w2;
         float z = 1.0f / oneOverZ;
-        // less equal
+// less equal
+#pragma ignore warning(perf)
         depth->depth[y * depth->width + x] =
+#pragma ignore warning(perf)
             max(z, depth->depth[y * depth->width + x]);
       }
     }
@@ -281,6 +280,153 @@ export void rasterTriangles32F(uniform SScreenTriangle tris[],
                                uniform SDepthBufferIspc32 *uniform depth) {
   if (useReverseZ) {
     rasterTriangles32FImplReverseZ(tris, numTris, depth);
+  }
+}
+
+export void rasterTriangles32FImplReverseZTiled(
+    uniform SScreenTriangle tris[], uniform int32 trisIds[],
+    uniform int32 numTris, uniform SBoxInt *uniform tileBox,
+    uniform SDepthBufferIspc32 *uniform depth) {
+  for (uniform int i = 0; i < numTris; i++) {
+    uniform SScreenTriangle st = tris[trisIds[i]];
+    uniform float area =
+        edgeFunctionUniform(st.sx0, st.sy0, st.sx1, st.sy1, st.sx2, st.sy2);
+    foreach_tiled(y = clamp((uniform int32)st.minY, tileBox->minY,
+                            tileBox->maxY)... clamp((uniform int32)st.maxY + 1,
+                                                    tileBox->minY,
+                                                    tileBox->maxY),
+                  x = (uniform int32)st.minX...(uniform int32) st.maxX + 1) {
+      float pixelX = x + 0.5f;
+      float pixelY = y + 0.5f;
+      float w0 =
+          edgeFunctionVarying(st.sx1, st.sy1, st.sx2, st.sy2, pixelX, pixelY);
+      float w1 =
+          edgeFunctionVarying(st.sx2, st.sy2, st.sx0, st.sy0, pixelX, pixelY);
+      float w2 =
+          edgeFunctionVarying(st.sx0, st.sy0, st.sx1, st.sy1, pixelX, pixelY);
+      if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+        w0 /= area;
+        w1 /= area;
+        w2 /= area;
+        float oneOverZ =
+            1.0f / st.cz0 * w0 + 1.0f / st.cz0 * w1 + 1.0f / st.cz0 * w2;
+        float z = 1.0f / oneOverZ;
+        // less equal
+#pragma ignore warning(perf)
+        depth->depth[y * depth->width + x] =
+#pragma ignore warning(perf)
+            max(z, depth->depth[y * depth->width + x]);
+      }
+    }
+  }
+}
+
+export void rasterTriangles32FImplReverseZTiled2(
+    uniform SScreenTriangle tris[], uniform int32 numTris,
+    uniform SBoxInt *uniform tileBox,
+    uniform SDepthBufferIspc32 *uniform depth) {
+  for (uniform int i = 0; i < numTris; i++) {
+    uniform SScreenTriangle st = tris[i];
+    uniform float area =
+        edgeFunctionUniform(st.sx0, st.sy0, st.sx1, st.sy1, st.sx2, st.sy2);
+    foreach_tiled(y = clamp((uniform int32)st.minY, tileBox->minY,
+                            tileBox->maxY)... clamp((uniform int32)st.maxY + 1,
+                                                    tileBox->minY,
+                                                    tileBox->maxY),
+                  x = (uniform int32)st.minX...(uniform int32) st.maxX + 1) {
+      float pixelX = x + 0.5f;
+      float pixelY = y + 0.5f;
+      float w0 =
+          edgeFunctionVarying(st.sx1, st.sy1, st.sx2, st.sy2, pixelX, pixelY);
+      float w1 =
+          edgeFunctionVarying(st.sx2, st.sy2, st.sx0, st.sy0, pixelX, pixelY);
+      float w2 =
+          edgeFunctionVarying(st.sx0, st.sy0, st.sx1, st.sy1, pixelX, pixelY);
+      if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+        w0 /= area;
+        w1 /= area;
+        w2 /= area;
+        float oneOverZ =
+            1.0f / st.cz0 * w0 + 1.0f / st.cz0 * w1 + 1.0f / st.cz0 * w2;
+        float z = 1.0f / oneOverZ;
+        // less equal
+#pragma ignore warning(perf)
+        depth->depth[y * depth->width + x] =
+#pragma ignore warning(perf)
+            max(z, depth->depth[y * depth->width + x]);
+      }
+    }
+  }
+}
+
+export void binTriangles(uniform SScreenTriangle tris[], uniform int32 numTris,
+                         uniform SBoxInt *uniform tileBox,
+                         uniform int32 numTiles, uniform FnBinTiles fnBinTiles,
+                         void *uniform self) {
+  foreach (i = 0...numTris) {
+#pragma ignore warning(perf)
+    SScreenTriangle tri = tris[i];
+    for (uniform int tId = 0; tId < numTiles; tId++) {
+#pragma ignore warning(perf)
+      uniform SBoxInt box = tileBox[tId];
+      if ((tri.minY < box.maxY && tri.minY >= box.minY) ||
+          (tri.maxY <= box.maxY && tri.maxY >= box.minY) ||
+          (tri.maxY >= box.maxY && tri.minY <= box.minY)) {
+        foreach_active(j) {
+          uniform int triId = extract(i, j);
+          // if (triId + j < numTris) {
+          fnBinTiles(self, triId, tId);
+          //}
+        }
+      }
+    }
+  }
+}
+
+uniform SScreenTriangle extract(const SScreenTriangle& tri, uniform int j) {
+    uniform SScreenTriangle screenTri;
+    screenTri.sx0 = extract(tri.sx0, j);
+    screenTri.sy0 = extract(tri.sy0, j);
+    screenTri.sx1 = extract(tri.sx1, j);
+    screenTri.sy1 = extract(tri.sy1, j);
+    screenTri.sx2 = extract(tri.sx2, j);
+    screenTri.sy2 = extract(tri.sy2, j);
+    screenTri.minX = extract(tri.minX, j);
+    screenTri.maxX = extract(tri.maxX, j);
+    screenTri.minY = extract(tri.minY, j);
+    screenTri.maxY = extract(tri.maxY, j);
+    screenTri.cz0 = extract(tri.cz0, j);
+    screenTri.cz1 = extract(tri.cz1, j);
+    screenTri.cz2 = extract(tri.cz2, j);
+    screenTri.minDepth = extract(tri.minDepth, j);
+    screenTri.maxDepth = extract(tri.maxDepth, j);
+    screenTri.flag = extract(tri.flag, j);
+    return screenTri;
+}
+
+export void
+binTriangles2TileImpl(uniform SScreenTriangle tris[], uniform int32 numTris,
+                      uniform SBoxInt *uniform tileBox, uniform int32 numTiles,
+                      uniform FnBinTriangle2Tiles fnBinTriangle2Tiles,
+                      SRenderContext *uniform self) {
+  foreach (i = 0...numTris) {
+#pragma ignore warning(perf)
+    SScreenTriangle tri = tris[i];
+    for (uniform int tId = 0; tId < numTiles; tId++) {
+#pragma ignore warning(perf)
+      uniform SBoxInt box = tileBox[tId];
+      if ((tri.minY < box.maxY && tri.minY >= box.minY) ||
+          (tri.maxY <= box.maxY && tri.maxY >= box.minY) ||
+          (tri.maxY >= box.maxY && tri.minY <= box.minY)) {
+        foreach_active(j) {
+          uniform int triId = extract(i, j);
+          // if (triId + j < numTris) {
+          uniform SScreenTriangle st = extract(tri, j);
+          fnBinTriangle2Tiles(self, &st, tId);
+          //}
+        }
+      }
+    }
   }
 }
 
@@ -332,16 +478,25 @@ void exportDepthBufferRGBAReverseZ(uniform float depthValues[],
   foreach (i = 0...width * height) {
     float depth = /*1.0f -*/ depthValues[i];
     int32 scaledDepth =
+#pragma ignore warning(perf)
         min(255, (int32)((depth - minDepth) / (maxDepth - minDepth) * 255 * 3));
     if (depth != infinity_neg && depth != infinity) {
+#pragma ignore warning(perf)
       cachePixels[4 * i] = scaledDepth;
+#pragma ignore warning(perf)
       cachePixels[4 * i + 1] = scaledDepth;
+#pragma ignore warning(perf)
       cachePixels[4 * i + 2] = scaledDepth;
+#pragma ignore warning(perf)
       cachePixels[4 * i + 3] = 255;
     } else {
+#pragma ignore warning(perf)
       cachePixels[4 * i] = 255;
+#pragma ignore warning(perf)
       cachePixels[4 * i + 1] = 0;
+#pragma ignore warning(perf)
       cachePixels[4 * i + 2] = 0;
+#pragma ignore warning(perf)
       cachePixels[4 * i + 3] = 128;
     }
   }

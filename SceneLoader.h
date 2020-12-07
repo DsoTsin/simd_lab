@@ -1,5 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
+#include <chrono>  
 #include "SIMDRaster.h"
 
 namespace simd {
@@ -26,11 +27,15 @@ public:
   void allocFramebuffer(int width, int height);
   void renderFrame();
 
+  void dump();
+
 private:
   FMatrix view_;
   FMatrix viewProj_;
 
   TArray<Object *> objects_;
   SRender sr_;
+
+  std::chrono::microseconds duration;
 };
 } // namespace simd

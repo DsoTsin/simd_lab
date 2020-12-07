@@ -64,6 +64,9 @@
     <ClCompile Include="lodepng.cpp">
       <Filter>LodePNG</Filter>
     </ClCompile>
+    <ClCompile Include="ScopeTimer.cpp">
+      <Filter>Raster</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SlotMask.h">
@@ -104,6 +107,9 @@
     </ClInclude>
     <ClInclude Include="lodepng.h">
       <Filter>LodePNG</Filter>
+    </ClInclude>
+    <ClInclude Include="ScopeTimer.h">
+      <Filter>Raster</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

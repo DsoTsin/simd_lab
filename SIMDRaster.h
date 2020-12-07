@@ -5,16 +5,22 @@
 #include <thread>
 
 #include "Raster.isph"
-#include "vectorlist.hpp"
 
 #include "CpuFeature.h"
 #include "Task.h"
+
+#include "ScopeTimer.h"
+
+#ifndef USE_STD_THREAD
+#define USE_STD_THREAD 0
+#endif
 
 #define ISPC_DELEGATE(name, ret, mainType, ...)                                \
   ret name(__VA_ARGS__);                                                       \
   static ret _##name(mainType, __VA_ARGS__)
 
 namespace simd {
+
 class SMesh {
 public:
   SMesh();
@@ -39,13 +45,6 @@ public:
 private:
   thread_ptr thread_;
   thread_ptrs xtransform_threads_;
-};
-
-struct SBoxInt {
-  int32 minX = 0;
-  int32 minY = 0;
-  int32 maxX = 0;
-  int32 maxY = 0;
 };
 
 class SRenderContext;
@@ -121,6 +120,7 @@ public:
   void run() override;
   ISPC_DELEGATE(receiveTris, void, STransformCullTask *, void *userData,
                 int tid, SScreenTriangle *tri);
+  TLinkVector<SScreenTriangle>::Vector &clipTris() { return *clipTris_; }
 
 private:
   SRenderContext *context_;
@@ -131,6 +131,18 @@ private:
   int32 endTris_;
   FMatrix localToClip_;
   TLinkVector<SScreenTriangle>::Vector *clipTris_;
+};
+
+class SRasterTask : public ITask {
+public:
+  SRasterTask(SRenderContext *context, int32 tileId);
+  virtual ~SRasterTask();
+
+  void run() override;
+
+private:
+  SRenderContext *context_;
+  int32 tileId_;
 };
 
 class SRenderContext {
@@ -151,12 +163,20 @@ public:
   void dumpDepthBufferForDebug();
 
 private:
+  ISPC_DELEGATE(binTiles, void, SRenderContext *context, int32 triId,
+                int32 tileId);
+
+  ISPC_DELEGATE(binTriangle2Tiles, void, SRenderContext* context, const SScreenTriangle* tri,
+      int32 tileId);
+
   ISPC_DELEGATE(receiveTris, void, SRenderContext *, void *userData, int tid,
                 SScreenTriangle *st);
 
   void myTransform(const float *inAoSTris, int trisOffset, int numTris,
                    const FMatrix *local2clip, SRenderParams *params,
                    SRenderContextIspc *ispc, void *userData);
+
+  SDepthBufferIspc32 *accessDepth32() { return &depth_->ispc32_; }
 
   void scalarRasterize();
   void vectorRasterize();
@@ -169,23 +189,28 @@ private:
   bool useReverseZ_;
   int simdLanes_;
   int coreCount_;
-  
+
   SIMDArch selectedArch_;
   SRenderContextIspc ispc_;
 
   FMatrix viewProj_;
   SDepthBuffer *depth_;
+  std::vector<SBoxInt> tileBoxes_;
+  std::vector<std::vector<int32>> tileTrisIds_;
+  std::vector<std::vector<SScreenTriangle>> tileTris_;
 
   TLinkVector<SScreenTriangle> ctris_;
   std::vector<SScreenTriangle> surviveTris_;
   std::vector<TaskThread *> transWorkers_;
-  std::vector<STransformCullTask *> tasks_;
+  std::vector<STransformCullTask *> transform_tasks_;
+  std::vector<SRasterTask *> raster_tasks_;
   int32 workerCounter_;
   int64 processedTris_;
 
   friend class SRender;
   friend class SDepthTile;
   friend class STransformCullTask;
+  friend class SRasterTask;
 };
 
 class SRender {

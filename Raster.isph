@@ -3,7 +3,7 @@
 #ifdef __cplusplus
 #define unmasked   
 #define uniform  
-#define export    
+#define export extern "C"
 #endif
 
 #ifdef __cplusplus
@@ -19,9 +19,13 @@ enum ClipFlag
     ClipNear = 16,
     ClipDiscard = 32, // Polygon using this vertex should be discarded
 };
-#ifdef __cplusplus
-}
-#endif
+
+struct SBoxInt {
+  int32 minX;
+  int32 minY;
+  int32 maxX;
+  int32 maxY;
+};
 
 struct SScreenTriangle {
   float sx0;
@@ -55,13 +59,33 @@ struct SScreenTriangle {
 #endif
 
 #ifdef __cplusplus
-  bool intersect();
+  bool intersect(const SBoxInt& box) const;
 #endif
 };
 
+#ifdef __cplusplus
+}
+#endif
+
 typedef unmasked void (*FnReceiveTris)(uniform struct SRenderContext *uniform ctx, void* uniform userData,
                                      uniform int tid, 
-                                     uniform SScreenTriangle* uniform st);
+#ifdef __cplusplus
+                                     simd::SScreenTriangle* st
+#else
+                                     uniform SScreenTriangle* uniform st
+#endif
+                                     );
+
+                                     
+typedef unmasked void (*FnBinTiles)(void* uniform self, uniform int32 triId, uniform int32 tileId);
+typedef unmasked void (*FnBinTriangle2Tiles)(void* uniform self, 
+#ifdef __cplusplus
+                                     simd::SScreenTriangle* st,
+#else
+                                     uniform SScreenTriangle* uniform st,
+#endif
+uniform int32 tileId);
+
 struct SRenderContextIspc {
   FnReceiveTris recv;
   struct SRenderContext *ctx;
