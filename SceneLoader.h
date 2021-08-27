@@ -1,7 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
-#include <chrono>  
-#include "SIMDRaster.h"
+#include "SoftRender/SoftRender.h"
 
 namespace simd {
 class SMesh;

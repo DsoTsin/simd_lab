@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SIMDRaster.h"
+#include "SoftRender.h"
 #include "SoATriangles.h"
 
 namespace simd {

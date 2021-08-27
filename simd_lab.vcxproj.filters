@@ -5,14 +5,8 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Intersector">
-      <UniqueIdentifier>{02653a4a-dae1-456f-8c28-87aa46c8f2e7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Slot">
       <UniqueIdentifier>{184339b3-9a67-44cb-9a9b-80cffdbcbac8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Raster">
-      <UniqueIdentifier>{9898bcf3-7df7-485f-9330-512e92a3daf1}</UniqueIdentifier>
     </Filter>
     <Filter Include="Scene">
       <UniqueIdentifier>{a5a45530-785d-4a95-9b30-65a257426dca}</UniqueIdentifier>
@@ -20,104 +14,122 @@
     <Filter Include="Visualizer">
       <UniqueIdentifier>{3703f64f-a493-462f-8b1a-cf8d3e9ffed7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="LodePNG">
-      <UniqueIdentifier>{6c254414-b00a-451a-8d27-21cb5a2bbadc}</UniqueIdentifier>
+    <Filter Include="Core">
+      <UniqueIdentifier>{f47a1f03-6aa3-46dd-8970-03006de49031}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SoftRender">
+      <UniqueIdentifier>{4f184961-5e2a-49ed-aacf-9ab207175aa0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="IntersectorAVX2.cpp">
-      <Filter>Intersector</Filter>
-    </ClCompile>
-    <ClCompile Include="Intersector.cpp">
-      <Filter>Intersector</Filter>
-    </ClCompile>
     <ClCompile Include="SlotMask.cpp">
       <Filter>Slot</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SIMDRaster.cpp">
-      <Filter>Raster</Filter>
-    </ClCompile>
-    <ClCompile Include="SIMDDepthBuffer.cpp">
-      <Filter>Raster</Filter>
-    </ClCompile>
-    <ClCompile Include="SIMDMesh.cpp">
-      <Filter>Raster</Filter>
-    </ClCompile>
-    <ClCompile Include="SoATriangles.cpp">
-      <Filter>Raster</Filter>
-    </ClCompile>
     <ClCompile Include="SceneLoader.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
-    <ClCompile Include="Threading.cpp">
-      <Filter>Raster</Filter>
+    <ClCompile Include="Core\BitmapWriter.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Task.cpp">
-      <Filter>Raster</Filter>
+    <ClCompile Include="Core\CpuFeature.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="CpuFeature.cpp">
-      <Filter>Raster</Filter>
+    <ClCompile Include="Core\Intersector.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="lodepng.cpp">
-      <Filter>LodePNG</Filter>
+    <ClCompile Include="Core\IntersectorAVX2.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="ScopeTimer.cpp">
-      <Filter>Raster</Filter>
+    <ClCompile Include="Core\lodepng.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\ScopeTimer.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Task.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Threading.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="SoftRender\SIMDDepthBuffer.cpp">
+      <Filter>SoftRender</Filter>
+    </ClCompile>
+    <ClCompile Include="SoftRender\SIMDMesh.cpp">
+      <Filter>SoftRender</Filter>
+    </ClCompile>
+    <ClCompile Include="SoftRender\SoATriangles.cpp">
+      <Filter>SoftRender</Filter>
+    </ClCompile>
+    <ClCompile Include="SoftRender\SoftRender.cpp">
+      <Filter>SoftRender</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SlotMask.h">
       <Filter>Slot</Filter>
     </ClInclude>
-    <ClInclude Include="SIMDRaster.h">
-      <Filter>Raster</Filter>
-    </ClInclude>
-    <ClInclude Include="RefCounted.h">
-      <Filter>Raster</Filter>
-    </ClInclude>
-    <ClInclude Include="CoreMinimal.h">
-      <Filter>Raster</Filter>
-    </ClInclude>
-    <ClInclude Include="vectorlist.hpp">
-      <Filter>Raster</Filter>
-    </ClInclude>
-    <ClInclude Include="SoATriangles.h">
-      <Filter>Raster</Filter>
-    </ClInclude>
-    <ClInclude Include="Mesh_p.h">
-      <Filter>Raster</Filter>
-    </ClInclude>
     <ClInclude Include="SceneLoader.h">
       <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="Threading.h">
-      <Filter>Raster</Filter>
+    <ClInclude Include="Core\atomics.hpp">
+      <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Task.h">
-      <Filter>Raster</Filter>
+    <ClInclude Include="Core\BitmapWriter.h">
+      <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="atomics.hpp">
-      <Filter>Raster</Filter>
+    <ClInclude Include="Core\concurrentqueue.h">
+      <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="CpuFeature.h">
-      <Filter>Raster</Filter>
+    <ClInclude Include="Core\CoreMinimal.h">
+      <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="lodepng.h">
-      <Filter>LodePNG</Filter>
+    <ClInclude Include="Core\CpuFeature.h">
+      <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="ScopeTimer.h">
-      <Filter>Raster</Filter>
+    <ClInclude Include="Core\lodepng.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\RefCounted.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\ScopeTimer.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Task.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Templates.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Threading.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\ue_math.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\vectorlist.hpp">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="SoftRender\Mesh_p.h">
+      <Filter>SoftRender</Filter>
+    </ClInclude>
+    <ClInclude Include="SoftRender\SoATriangles.h">
+      <Filter>SoftRender</Filter>
+    </ClInclude>
+    <ClInclude Include="SoftRender\SoftRender.h">
+      <Filter>SoftRender</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="SIMDRasterOps.ispc">
-      <Filter>Raster</Filter>
-    </CustomBuild>
     <CustomBuild Include="SlotMaskOps.ispc">
       <Filter>Slot</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SoftRender\SoftRenderImpl.ispc">
+      <Filter>SoftRender</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -126,13 +138,13 @@
     </Natvis>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Raster.isph">
-      <Filter>Raster</Filter>
-    </None>
+    <MASM Include="Core\atomic.asm">
+      <Filter>Core</Filter>
+    </MASM>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="atomic.asm">
-      <Filter>Raster</Filter>
-    </MASM>
+    <None Include="SoftRender\SoftRender.isph">
+      <Filter>SoftRender</Filter>
+    </None>
   </ItemGroup>
 </Project>

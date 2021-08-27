@@ -1,5 +1,4 @@
 #include "ScopeTimer.h"
-#include <iostream>
 
 thread_local int ScopeTimer::depth = 0;
 thread_local std::queue<ScopeTimer::__> ScopeTimer::stack_;
