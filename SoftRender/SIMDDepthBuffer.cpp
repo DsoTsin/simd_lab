@@ -1,4 +1,4 @@
-#include "SIMDRaster.h"
+#include "SoftRender.h"
 
 namespace simd {
 bool SScreenTriangle::intersect(const SBoxInt &box) const {
@@ -25,7 +25,7 @@ SDepthTile::~SDepthTile() {
 void SDepthTile::tryRaster() {
   // sort triList first
 
-  for (size_t triId = 0; triId < triList_.size(); triId++) {
+  for (size_t triId = 0; triId < triList_.Num(); triId++) {
     auto &st = context_->accessTri(triList_[triId]); // cache problem ?
   }
 }

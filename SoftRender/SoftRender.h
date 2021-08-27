@@ -4,7 +4,7 @@
 #include <atomic>
 #include <thread>
 
-#include "Raster.isph"
+#include "SoftRender.isph"
 
 #include "CpuFeature.h"
 #include "Task.h"
@@ -38,7 +38,7 @@ private:
 class SThreadContext {
 public:
   using thread_ptr = std::shared_ptr<std::thread>;
-  using thread_ptrs = std::vector<thread_ptr>;
+  using thread_ptrs = TArray<thread_ptr>;
 
   SThreadContext();
 
@@ -65,7 +65,7 @@ private:
   float minDepth_;
   float maxDepth_;
   uint32 *mask_;
-  std::vector<int32> triList_;
+  TArray<int32> triList_;
 };
 
 // use for accelerating triangle binning (intersection)
@@ -195,15 +195,15 @@ private:
 
   FMatrix viewProj_;
   SDepthBuffer *depth_;
-  std::vector<SBoxInt> tileBoxes_;
-  std::vector<std::vector<int32>> tileTrisIds_;
-  std::vector<std::vector<SScreenTriangle>> tileTris_;
+  TArray<SBoxInt> tileBoxes_;
+  TArray<TArray<int32>> tileTrisIds_;
+  TArray<TArray<SScreenTriangle>> tileTris_;
 
   TLinkVector<SScreenTriangle> ctris_;
-  std::vector<SScreenTriangle> surviveTris_;
-  std::vector<TaskThread *> transWorkers_;
-  std::vector<STransformCullTask *> transform_tasks_;
-  std::vector<SRasterTask *> raster_tasks_;
+  TArray<SScreenTriangle> surviveTris_;
+  TArray<TaskThread *> transWorkers_;
+  TArray<STransformCullTask *> transform_tasks_;
+  TArray<SRasterTask *> raster_tasks_;
   int32 workerCounter_;
   int64 processedTris_;
 

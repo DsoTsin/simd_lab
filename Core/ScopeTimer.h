@@ -1,7 +1,5 @@
 #pragma once
-#include <chrono>
-#include <queue>
-#include <string>
+#include "CoreMinimal.h"
 
 class ScopeTimer {
 public:

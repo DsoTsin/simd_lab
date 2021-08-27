@@ -41,6 +41,7 @@ extern "C" void atomic_increment64(size_t* ptr); // defined in asm
 
 #include "concurrentqueue.h"
 #include "vectorlist.hpp"
+#include "Templates.h"
 
 struct FVector {
   union {
@@ -127,16 +128,6 @@ public:
   bool IntersectSphere(const FVector &Origin, const float &Radius) const;
   bool IntersectSphere(const FVector &Origin, const float &Radius,
                        bool &bOutFullyContained) const;
-};
-
-template <typename T> class TArray : public std::vector<T> {
-public:
-  int32 Add(const T &Elem) {
-    int32 ENum = this->size();
-    push_back(Elem);
-    return ENum;
-  }
-  int32 Num() const { return (int32)this->size(); }
 };
 
 template <typename T> class LockFreeQueue {
@@ -244,3 +235,9 @@ private:
 
   Node *m_Head, *m_Tail;
 };
+
+#include <chrono>  
+#include <fstream>
+#include <iostream>
+#include <queue>
+#include <string>

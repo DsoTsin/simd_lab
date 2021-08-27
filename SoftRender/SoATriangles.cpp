@@ -1,5 +1,5 @@
 #include "SoATriangles.h"
-#include "SIMDRaster.h"
+#include "SoftRender.h"
 
 namespace simd {
 struct __flat_triangle {

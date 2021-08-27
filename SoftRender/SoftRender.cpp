@@ -1,6 +1,11 @@
-#include "SIMDRaster.h"
+#include "SoftRender.h"
 #include "Mesh_p.h"
+
+#define DUMP_PNG 1
+
+#ifdef DUMP_PNG
 #include "lodepng.h"
+#endif
 
 #include <chrono>
 #include <intrin.h>
@@ -190,7 +195,7 @@ SRenderContext::SRenderContext(SIMDArch preferArch)
   // consider big-little cpu?
   for (int i = 0; i < coreCount_; i++) {
     auto thread = new TaskThread;
-    transWorkers_.push_back(thread);
+    transWorkers_.Add(thread);
   }
 
   for (auto &w : transWorkers_) {
@@ -229,9 +234,9 @@ void SRenderContext::beginRender(const FMatrix &viewProj) {
   depth_->clear(useReverseZ_ ? 0.0f : 1.0f);
 
   // clear tiles data
-  tileBoxes_.clear();
-  tileTrisIds_.clear();
-  tileTris_.clear();
+  tileBoxes_.Empty();
+  tileTrisIds_.Empty();
+  tileTris_.Empty();
 
   int32 laneCountX = depth_->width() / simdLanes_;
   int32 laneCountY = depth_->height() / simdLanes_;
@@ -252,18 +257,18 @@ void SRenderContext::beginRender(const FMatrix &viewProj) {
       if (coreId == coreCount_ - 1) {
         SBoxInt box{0, rowsPerCore * coreId, tileW,
                     rowsPerCore * coreId + tileHLastCore};
-        tileBoxes_.push_back(box);
+        tileBoxes_.Add(box);
         break;
       }
       SBoxInt box{0, rowsPerCore * coreId, tileW,
                   rowsPerCore * coreId + rowsPerCore};
-      tileBoxes_.push_back(box);
+      tileBoxes_.Add(box);
     }
   }
 
   // allocate tile trisIds
-  tileTrisIds_.resize(tileBoxes_.size());
-  tileTris_.resize(tileBoxes_.size());
+  tileTrisIds_.Resize(tileBoxes_.Num());
+  tileTris_.Resize(tileBoxes_.Num());
 }
 void SRenderContext::transformAndCull(SMesh *m, const FMatrix &l2w) {
   processedTris_ += m->numTris();
@@ -272,10 +277,10 @@ void SRenderContext::transformAndCull(SMesh *m, const FMatrix &l2w) {
   SRenderParams params{depth_->width(), depth_->height(), viewProj_.M[3][2]};
   auto trisN = ctris_.newVector();
 #if USE_MULTITHREAD
-  transform_tasks_.push_back(
+  transform_tasks_.Add(
       new STransformCullTask(this, m, l2c, params, 0, m->numTris(), trisN));
-  workerCounter_ = ++workerCounter_ % transWorkers_.size();
-  transWorkers_[workerCounter_]->enqueue(transform_tasks_.back());
+  workerCounter_ = ++workerCounter_ % transWorkers_.Num();
+  transWorkers_[workerCounter_]->enqueue(transform_tasks_.Last());
 #else
   SwizzledMesh *sm = static_cast<SwizzledMesh *>(m);
   trisN->reserve(sm->numTris());
@@ -316,17 +321,17 @@ void SRenderContext::splitClipTris() {
     }
   }
 #else
-  size_t total_tasks = transform_tasks_.size();
+  size_t total_tasks = transform_tasks_.Num();
   size_t task_id = 0;
   while (total_tasks > 0) {
     if (transform_tasks_[task_id]->isComplete()) {
       auto &tris = transform_tasks_[task_id]->clipTris();
       binTriangles2TileImpl(
-          tris.data, tris.num, tileBoxes_.data(), int32(tileBoxes_.size()),
+          tris.data, tris.num, tileBoxes_.GetData(), int32(tileBoxes_.Num()),
           (FnBinTriangle2Tiles)&SRenderContext::_binTriangle2Tiles, this);
       total_tasks--;
     }
-    task_id = ++task_id % transform_tasks_.size();
+    task_id = ++task_id % transform_tasks_.Num();
   }
 #endif
 }
@@ -339,10 +344,10 @@ void SRenderContext::_binTriangle2Tiles(SRenderContext *self,
 
 void SRenderContext::binTriangle2Tiles(const SScreenTriangle *tri,
                                        int32 tileId) {
-  if (tileTris_[tileId].empty()) {
-    tileTris_[tileId].reserve(4000);
+  if (tileTris_[tileId].Num() == 0) {
+    tileTris_[tileId].Reserve(4000);
   }
-  tileTris_[tileId].push_back(*tri);
+  tileTris_[tileId].Add(*tri);
 }
 
 export void binTriangles(uniform SScreenTriangle tris[], uniform int32 numTris,
@@ -384,10 +389,10 @@ void SRenderContext::_binTiles(SRenderContext *self, int32 triId,
 }
 
 void SRenderContext::binTiles(int32 triId, int32 tileId) {
-  if (tileTrisIds_[tileId].empty()) {
-    tileTrisIds_[tileId].reserve(4000);
+  if (tileTrisIds_[tileId].Num() == 0) {
+    tileTrisIds_[tileId].Reserve(4000);
   }
-  tileTrisIds_[tileId].push_back(triId);
+  tileTrisIds_[tileId].Add(triId);
 }
 
 SRasterTask::SRasterTask(SRenderContext *context, int32 tileId)
@@ -403,8 +408,8 @@ void SRasterTask::run() {
       &context_->tileBoxes_[tileId_], context_->accessDepth32());
 #else
   rasterTriangles32FImplReverseZTiled2(
-      context_->tileTris_[tileId_].data(),
-      (int32)context_->tileTris_[tileId_].size(),
+      context_->tileTris_[tileId_].GetData(),
+      (int32)context_->tileTris_[tileId_].Num(),
       &context_->tileBoxes_[tileId_], context_->accessDepth32());
 #endif
 }
@@ -418,20 +423,20 @@ void SRenderContext::spawnTileRasterTasks() {
   vectorRasterize();
 #endif
 #else
-  for (int32 tileId = 0; tileId < tileBoxes_.size(); tileId++) {
-    raster_tasks_.push_back(new SRasterTask(this, tileId));
-    transWorkers_[tileId]->enqueue(raster_tasks_.back());
+  for (int32 tileId = 0; tileId < tileBoxes_.Num(); tileId++) {
+    raster_tasks_.Add(new SRasterTask(this, tileId));
+    transWorkers_[tileId]->enqueue(raster_tasks_.Last());
   }
   for (auto &r : raster_tasks_) {
     r->wait();
     delete r;
   }
-  raster_tasks_.clear();
+  raster_tasks_.Empty();
 #endif
 }
 
 void SRenderContext::scalarRasterize() {
-  for (size_t index = 0; index < surviveTris_.size(); index++) {
+  for (size_t index = 0; index < surviveTris_.Num(); index++) {
     auto &st = surviveTris_[index];
     float area = edgeFunction(st.sx0, st.sy0, st.sx1, st.sy1, st.sx2, st.sy2);
     for (int32 x = int32(st.minX); x <= int32(st.maxX); x++)
@@ -463,7 +468,7 @@ void SRenderContext::scalarRasterize() {
 }
 
 void SRenderContext::vectorRasterize() {
-  rasterTriangles32F(surviveTris_.data(), (int32)surviveTris_.size(),
+  rasterTriangles32F(surviveTris_.GetData(), (int32)surviveTris_.Num(),
                      useReverseZ_, &depth_->ispc32_);
 }
 
@@ -472,8 +477,8 @@ void SRenderContext::endRender() {
   for (auto &t : transform_tasks_) {
     delete t;
   }
-  transform_tasks_.clear();
-  surviveTris_.clear();
+  transform_tasks_.Empty();
+  surviveTris_.Empty();
   ctris_.reset();
 }
 
