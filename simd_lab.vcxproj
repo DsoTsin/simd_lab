@@ -30,17 +30,23 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <ISPCFlags>-g -O0</ISPCFlags>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
     <ISPCFlags>-O3</ISPCFlags>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -57,11 +63,14 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(Platform)\$(Configuration)\</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(Platform)\$(Configuration)\;$(ProjectDir)\Core;$(ProjectDir)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(Platform)\$(Configuration)\</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(Platform)\$(Configuration)\;$(ProjectDir)\Core;$(ProjectDir)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IncludePath>$(ProjectDir)\Core;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -93,57 +102,63 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="CpuFeature.cpp" />
-    <ClCompile Include="Intersector.cpp" />
-    <ClCompile Include="IntersectorAVX2.cpp" />
-    <ClCompile Include="lodepng.cpp" />
+    <ClCompile Include="Core\BitmapWriter.cpp" />
+    <ClCompile Include="Core\CpuFeature.cpp" />
+    <ClCompile Include="Core\Intersector.cpp" />
+    <ClCompile Include="Core\IntersectorAVX2.cpp" />
+    <ClCompile Include="Core\lodepng.cpp" />
+    <ClCompile Include="Core\ScopeTimer.cpp" />
+    <ClCompile Include="Core\Task.cpp" />
+    <ClCompile Include="Core\Threading.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="SceneLoader.cpp" />
-    <ClCompile Include="ScopeTimer.cpp" />
-    <ClCompile Include="SIMDDepthBuffer.cpp" />
-    <ClCompile Include="SIMDMesh.cpp" />
-    <ClCompile Include="SIMDRaster.cpp" />
     <ClCompile Include="SlotMask.cpp" />
-    <ClCompile Include="SoATriangles.cpp" />
-    <ClCompile Include="Task.cpp" />
-    <ClCompile Include="Threading.cpp" />
+    <ClCompile Include="SoftRender\SIMDDepthBuffer.cpp" />
+    <ClCompile Include="SoftRender\SIMDMesh.cpp" />
+    <ClCompile Include="SoftRender\SoATriangles.cpp" />
+    <ClCompile Include="SoftRender\SoftRender.cpp" />
+    <None Include="SoftRender\SoftRender.isph" />
+    <!--None Include="SoftRender\SoftRenderImpl.ispc" /-->
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="SlotMaskOps.ispc" BeforeTargets="ClCompile">
-      <Message>Compiling SlotMaskOps.ispc</Message>
+      <Message>Compiling SlotMaskOps.ispc Flags: $(ISPCFlags)</Message>
       <Command>call ispc.exe SlotMaskOps.ispc -h $(Platform)\$(Configuration)\SlotMaskOps.ispc.h --arch=x86_64 --target=avx512skx-i32x16,avx2,avx,sse4,sse2 $(ISPCFlags) -o $(OutDir)SlotMaskOps.obj</Command>
       <Outputs>$(OutDir)SlotMaskOps.obj;$(OutDir)SlotMaskOps_avx.obj;$(OutDir)SlotMaskOps_avx2.obj;$(OutDir)SlotMaskOps_sse2.obj;$(OutDir)SlotMaskOps_sse4.obj;$(OutDir)SlotMaskOps_avx512skx.obj</Outputs>
     </CustomBuild>
-    <CustomBuild Include="SIMDRasterOps.ispc" BeforeTargets="ClCompile">
-      <Message>Compiling SIMDRasterOps.ispc</Message>
-      <Command>call ispc.exe SIMDRasterOps.ispc -h $(Platform)\$(Configuration)\SIMDRasterOps.ispc.h --arch=x86_64 --target=avx512skx-i32x16,avx2,avx,sse4,sse2 $(ISPCFlags) -o $(OutDir)SIMDRasterOps.obj</Command>
-      <Outputs>$(OutDir)SIMDRasterOps.obj;$(OutDir)SIMDRasterOps_avx.obj;$(OutDir)SIMDRasterOps_avx2.obj;$(OutDir)SIMDRasterOps_sse2.obj;$(OutDir)SIMDRasterOps_sse4.obj;$(OutDir)SIMDRasterOps_avx512skx.obj</Outputs>
+    <CustomBuild Include="SoftRender\SoftRenderImpl.ispc" BeforeTargets="ClCompile">
+      <Message>Compiling SoftRender/SoftRenderImpl.ispc Flags: $(ISPCFlags)</Message>
+      <Command>call ispc.exe SoftRender/SoftRenderImpl.ispc -h $(Platform)\$(Configuration)\SoftRenderImpl.ispc.h --arch=x86_64 --target=avx512skx-i32x16,avx2,avx,sse4,sse2 $(ISPCFlags) -o $(OutDir)SoftRenderImpl.obj</Command>
+      <Outputs>$(OutDir)SoftRenderImpl.obj;$(OutDir)SoftRenderImpl_avx.obj;$(OutDir)SoftRenderImpl_avx2.obj;$(OutDir)SoftRenderImpl_sse2.obj;$(OutDir)SoftRenderImpl_sse4.obj;$(OutDir)SoftRenderImpl_avx512skx.obj</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="atomics.hpp" />
-    <ClInclude Include="CoreMinimal.h" />
-    <ClInclude Include="CpuFeature.h" />
-    <ClInclude Include="lodepng.h" />
-    <ClInclude Include="Mesh_p.h" />
-    <ClInclude Include="RefCounted.h" />
+    <ClInclude Include="Core\atomics.hpp" />
+    <ClInclude Include="Core\BitmapWriter.h" />
+    <ClInclude Include="Core\concurrentqueue.h" />
+    <ClInclude Include="Core\CoreMinimal.h" />
+    <ClInclude Include="Core\CpuFeature.h" />
+    <ClInclude Include="Core\lodepng.h" />
+    <ClInclude Include="Core\RefCounted.h" />
+    <ClInclude Include="Core\ScopeTimer.h" />
+    <ClInclude Include="Core\Task.h" />
+    <ClInclude Include="Core\Templates.h" />
+    <ClInclude Include="Core\Threading.h" />
+    <ClInclude Include="Core\ue_math.h" />
+    <ClInclude Include="Core\vectorlist.hpp" />
     <ClInclude Include="SceneLoader.h" />
-    <ClInclude Include="ScopeTimer.h" />
-    <ClInclude Include="SIMDRaster.h" />
     <ClInclude Include="SlotMask.h" />
-    <ClInclude Include="SoATriangles.h" />
-    <ClInclude Include="Task.h" />
-    <ClInclude Include="Threading.h" />
-    <ClInclude Include="vectorlist.hpp" />
+    <ClInclude Include="SoftRender\Mesh_p.h" />
+    <ClInclude Include="SoftRender\SoATriangles.h" />
+    <ClInclude Include="SoftRender\SoftRender.h" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="simd_utils.natvis" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Raster.isph" />
+    <MASM Include="Core\atomic.asm" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="atomic.asm" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

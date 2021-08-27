@@ -1,6 +1,7 @@
+#define __AVX__
 #include "SceneLoader.h"
-#include <fstream>
-#include <iostream>
+
+#include "ScopeTimer.h"
 
 using namespace std::chrono;
 
@@ -22,7 +23,7 @@ bool SceneLoader::load(const char *fileName) {
   uint32 numObjects = 0;
   input.read((char *)&numObjects, sizeof(numObjects));
   check(numObjects > 0 && numObjects < 1000);
-  objects_.reserve(numObjects);
+  objects_.Reserve(numObjects);
 
   for (uint32 i = 0; i < numObjects; i++) {
     std::vector<FVector> positions;
@@ -45,7 +46,7 @@ bool SceneLoader::load(const char *fileName) {
     input.read((char *)local2World.M, sizeof(local2World));
     auto obj = new Object;
     obj->set(newMesh, local2World);
-    objects_.push_back(obj);
+    objects_.Add(obj);
   }
 
   return true;

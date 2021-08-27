@@ -5,3 +5,6 @@
 /.idea/
 /unreal_exporter/Intermediate/
 /unreal_exporter/Binaries/
+/VoxelResample/x64
+/VoxelResample/VoxelResample.vcxproj.user
+/simd_lab/x64
