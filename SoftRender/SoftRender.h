@@ -1,9 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
 
-#include <atomic>
-#include <thread>
-
 #include "SoftRender.isph"
 
 #include "CpuFeature.h"

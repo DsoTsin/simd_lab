@@ -1,6 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "SoftRender.h"
+#include "SoftRender/SoftRender.h"
 
 namespace simd {
 class SMesh;

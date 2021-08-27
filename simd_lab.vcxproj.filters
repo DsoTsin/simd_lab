@@ -128,6 +128,9 @@
     <CustomBuild Include="SlotMaskOps.ispc">
       <Filter>Slot</Filter>
     </CustomBuild>
+    <CustomBuild Include="SoftRender\SoftRenderImpl.ispc">
+      <Filter>SoftRender</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="simd_utils.natvis">
@@ -141,9 +144,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="SoftRender\SoftRender.isph">
-      <Filter>SoftRender</Filter>
-    </None>
-    <None Include="SoftRender\SoftRenderImpl.ispc">
       <Filter>SoftRender</Filter>
     </None>
   </ItemGroup>

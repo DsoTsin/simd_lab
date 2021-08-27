@@ -3,6 +3,10 @@
 #define USE_TILED 1
 #define USE_ATOMIC_DEPTH_WRITE 0
 
+#define USE_EXPLICIT_VECTOR 1
+
+typedef float<4> float4;
+
 export uniform int ispc_lane_width() { return programCount; }
 
 //@see simd::ClipTrisCache

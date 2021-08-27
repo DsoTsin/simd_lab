@@ -111,6 +111,8 @@
     <ClCompile Include="SoftRender\SIMDMesh.cpp" />
     <ClCompile Include="SoftRender\SoATriangles.cpp" />
     <ClCompile Include="SoftRender\SoftRender.cpp" />
+    <None Include="SoftRender\SoftRender.isph" />
+    <!--None Include="SoftRender\SoftRenderImpl.ispc" /-->
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="SlotMaskOps.ispc" BeforeTargets="ClCompile">
@@ -118,8 +120,7 @@
       <Command>call ispc.exe SlotMaskOps.ispc -h $(Platform)\$(Configuration)\SlotMaskOps.ispc.h --arch=x86_64 --target=avx512skx-i32x16,avx2,avx,sse4,sse2 $(ISPCFlags) -o $(OutDir)SlotMaskOps.obj</Command>
       <Outputs>$(OutDir)SlotMaskOps.obj;$(OutDir)SlotMaskOps_avx.obj;$(OutDir)SlotMaskOps_avx2.obj;$(OutDir)SlotMaskOps_sse2.obj;$(OutDir)SlotMaskOps_sse4.obj;$(OutDir)SlotMaskOps_avx512skx.obj</Outputs>
     </CustomBuild>
-    
-    <CustomBuild Include="SoftRender/SoftRenderImpl.ispc" BeforeTargets="ClCompile">
+    <CustomBuild Include="SoftRender\SoftRenderImpl.ispc" BeforeTargets="ClCompile">
       <Message>Compiling SoftRender/SoftRenderImpl.ispc Flags: $(ISPCFlags)</Message>
       <Command>call ispc.exe SoftRender/SoftRenderImpl.ispc -h $(Platform)\$(Configuration)\SoftRenderImpl.ispc.h --arch=x86_64 --target=avx512skx-i32x16,avx2,avx,sse4,sse2 $(ISPCFlags) -o $(OutDir)SoftRenderImpl.obj</Command>
       <Outputs>$(OutDir)SoftRenderImpl.obj;$(OutDir)SoftRenderImpl_avx.obj;$(OutDir)SoftRenderImpl_avx2.obj;$(OutDir)SoftRenderImpl_sse2.obj;$(OutDir)SoftRenderImpl_sse4.obj;$(OutDir)SoftRenderImpl_avx512skx.obj</Outputs>
@@ -152,8 +153,6 @@
     <MASM Include="Core\atomic.asm" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="SoftRender\SoftRender.isph" />
-    <None Include="SoftRender\SoftRenderImpl.ispc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
