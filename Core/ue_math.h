@@ -41,7 +41,9 @@ typedef uint8_t uint8;
 // Copied from float.h
 #define MAX_FLT 3.402823466e+38F
 
+#if defined(_M_X64) || defined(_M_IX86)
 #include "Math/UnrealMathSSE.h"
+#endif
 
 class FMatrix {
 public:
@@ -73,7 +75,7 @@ public:
   }
 };
 
-//#if __AVX__
+#if defined(__AVX__)
 #include <immintrin.h> //avx2
 
 FORCEINLINE __m256 TwoColumnComb_AVX_8(__m256 A01, const FMatrix &B) {
@@ -113,3 +115,4 @@ FORCEINLINE void matrixMultiplyAVX(FMatrix &out, const FMatrix &A,
   _mm256_storeu_ps(out.M[0], out01x);
   _mm256_storeu_ps(out.M[2], out23x);
 }
+#endif

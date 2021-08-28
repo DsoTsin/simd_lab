@@ -7,9 +7,8 @@
 #include "lodepng.h"
 #endif
 
-#include <chrono>
+#include "ScopeTimer.h"
 #include <intrin.h>
-#include <iostream>
 
 #ifndef USE_MULTITHREAD
 #define USE_MULTITHREAD 1
@@ -82,8 +81,6 @@ rasterTriangles32FImplReverseZTiled2(uniform simd::SScreenTriangle tris[],
                                      uniform simd::SBoxInt *uniform tileBox,
                                      uniform SDepthBufferIspc32 *uniform depth);
 
-#include "SceneLoader.h"
-
 namespace simd {
 
 STransformCullTask::STransformCullTask(
@@ -122,7 +119,7 @@ void STransformCullTask::run() {
       clipTris_->reserve(endTris_ / 2);
     }
   }
-  context_->myTransform(sm->data(), startTris_, endTris_, &localToClip_,
+  context_->transformAndCull(sm->data(), startTris_, endTris_, &localToClip_,
                         &params_, &ispc_, clipTris_);
 }
 
@@ -151,6 +148,14 @@ SMesh *SRender::newMesh(const FVector *positions, int32 numPositions,
 
 void SRender::beginRender(const FMatrix &viewProj) {
   renderContext_.beginRender(viewProj);
+}
+void SRender::render(const FVector* positions, int32 numPositions, const FMatrix& l2w)
+{
+    //TODO
+}
+void SRender::render(const FVector* positions, int32 numPositions, const uint16* indices, int32 numIndices, const FMatrix& l2w)
+{
+    //TODO
 }
 void SRender::render(SMesh *m, const FMatrix &l2w) {
   renderContext_.transformAndCull(m, l2w);
@@ -498,7 +503,7 @@ void SRenderContext::dumpDepthBufferForDebug() {
   lodepng::save_file(data, "depth_buffer.png");
 }
 
-void SRenderContext::myTransform(const float *inAoSTris, int trisOffset,
+void SRenderContext::transformAndCull(const float *inAoSTris, int trisOffset,
                                  int numTris, const FMatrix *local2clip,
                                  SRenderParams *params,
                                  SRenderContextIspc *ispc, void *userData) {

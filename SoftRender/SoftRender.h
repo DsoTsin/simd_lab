@@ -1,12 +1,8 @@
 #pragma once
 #include "CoreMinimal.h"
-
 #include "SoftRender.isph"
-
 #include "CpuFeature.h"
 #include "Task.h"
-
-#include "ScopeTimer.h"
 
 #ifndef USE_STD_THREAD
 #define USE_STD_THREAD 0
@@ -169,7 +165,7 @@ private:
   ISPC_DELEGATE(receiveTris, void, SRenderContext *, void *userData, int tid,
                 SScreenTriangle *st);
 
-  void myTransform(const float *inAoSTris, int trisOffset, int numTris,
+  void transformAndCull(const float *inAoSTris, int trisOffset, int numTris,
                    const FMatrix *local2clip, SRenderParams *params,
                    SRenderContextIspc *ispc, void *userData);
 
@@ -219,11 +215,51 @@ public:
   int32 width_aligned() const;
   int32 height_aligned() const;
 
+  /// <summary>
+  ///   Create SOA-form triangles mesh
+  /// </summary>
+  /// <param name="positions"></param>
+  /// <param name="numPositions"></param>
+  /// <returns></returns>
   SMesh *newMesh(const FVector *positions, int32 numPositions);
+
+  /// <summary>
+  ///   Create SOA-form triangles mesh
+  /// </summary>
+  /// <param name="positions"></param>
+  /// <param name="numPositions"></param>
+  /// <param name="indices"></param>
+  /// <param name="numIndices"></param>
+  /// <returns></returns>
   SMesh *newMesh(const FVector *positions, int32 numPositions,
                  const uint16 *indices, int32 numIndices);
 
   void beginRender(const FMatrix &viewProj);
+
+  /// <summary>
+  ///   Render triangles (without SOA-form)
+  /// </summary>
+  /// <param name="positions"></param>
+  /// <param name="numPositions"></param>
+  /// <param name="l2w"></param>
+  void render(const FVector* positions, int32 numPositions, const FMatrix& l2w);
+
+  /// <summary>
+  ///   Render indexed triangles (without SOA-form)
+  /// </summary>
+  /// <param name="positions"></param>
+  /// <param name="numPositions"></param>
+  /// <param name="indices"></param>
+  /// <param name="numIndices"></param>
+  /// <param name="l2w"></param>
+  void render(const FVector* positions, int32 numPositions,
+      const uint16* indices, int32 numIndices, const FMatrix& l2w);
+
+  /// <summary>
+  ///   Render SOA-optimized mesh
+  /// </summary>
+  /// <param name="m"></param>
+  /// <param name="l2w"></param>
   void render(SMesh *m, const FMatrix &l2w);
 
   void flush();
